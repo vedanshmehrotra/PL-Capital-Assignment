@@ -1,83 +1,198 @@
 # Portfolio Review
 
-Portfolio analytics take-home with a browser interface, a terminal interface, and an evaluator. The three entry points use the same Python agent and the original SQLite schema and CSV files in `Exercise_PL_AI_Engineer.zip`.
+**PL Capital · AI Engineering Take-Home**
 
-## Run it
+Ask questions about investment portfolios in plain English, inspect the holdings behind each answer, and compare how allocation figures were calculated.
 
-Use Python 3.11 or newer. Keep the exercise ZIP beside the Python files.
+Python · Gemini · SQLite · Streamlit · Altair
 
-The direct dependencies are pinned to the versions used for the submission checks. The interface and charts use Arial, with Consolas for query code.
+[Quick start](#quick-start) · [Try it](#try-it) · [Check the numbers](#check-the-numbers) · [Evaluation](#evaluation) · [How it works](#how-it-works)
+
+![Portfolio Review showing the International Equity Fund and its holdings](portfolio_all_funds_preview.jpg)
+
+## Assignment coverage
+
+| Required deliverable | Implementation |
+| --- | --- |
+| Command-line portfolio agent | [cli.py](cli.py) uses the same agent as the browser |
+| Natural-language SQL tool | Gemini generates SQL for execution through a read-only SQLite allowlist |
+| Equity sector exposure calculator | Groups recorded stock weights by sector, excluding bonds from equity exposure |
+| Ground-truth evaluator | [evaluate.py](evaluate.py) runs the 10 supplied questions in Gemini-only mode |
+| Run documentation and error handling | Setup below, inline browser errors, bounded query execution, and one retry for eligible provider errors |
+
+The browser adds allocation charts, sortable holdings, conversational context, and calculation evidence for all **13 supplied portfolios**.
+
+## Quick start
+
+Requires **Python 3.11+**. Keep the supplied `Exercise_PL_AI_Engineer.zip` in the repository root.
+
+```bash
+git clone https://github.com/vedanshmehrotra/PL-Capital-Assignment.git
+cd PL-Capital-Assignment
+python -m venv .venv
+```
+
+<details open>
+<summary><strong>Windows / PowerShell</strong></summary>
 
 ```powershell
-python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe portfolio_data.py
+Copy-Item .env.example .env
+```
+
+Paste your Google AI Studio key into the local `.env` file, then start the app.
+
+```powershell
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-Open the URL Streamlit prints. Choose a supplied portfolio to see its allocation, recorded performance, and holdings alongside the question panel. The exercise ZIP supplies the data, and the app loads it into read-only SQLite for each lookup. “This portfolio” in a question refers to the selected fund. Each portfolio keeps its last ten exchanges in the current browser session.
+</details>
 
-Simple counts, general portfolio reviews, holdings requests, and sector exposures are answered locally. Other requests go to Gemini with the selected portfolio and the last four exchanges. The context contains prior questions, relevant portfolio/symbol names, and up to five prior result rows. Each reply labels its route, number of model calls, and provider-reported tokens when available. The local route makes no Gemini request. The displayed model-call count excludes network retry attempts.
+<details>
+<summary><strong>macOS / Linux</strong></summary>
 
-Try “How are the holdings?” followed by “Pick any random one.” The second question selects a holding from the preceding portfolio review. A request for a 1–10 rating explains that a score needs agreed criteria and supplies measured facts instead of an arbitrary grade.
-
-On Windows, run Streamlit with `.\.venv\Scripts\python.exe -m streamlit run app.py` from this folder so it uses the same environment where the dependencies were installed. If the app reports that the Gemini SDK could not load, check which URL the terminal printed and open that copy.
-
-For free-form questions, copy `.env.example` to `.env` if the file is missing and paste your Google AI Studio key after `GEMINI_API_KEY=`. Keep `.env` local. The browser, CLI, and evaluator all read it. Process environment variables take precedence. The default model is `gemini-3.5-flash-lite`; set `GEMINI_MODEL` to use another model available to your key.
-
-The Gemini client retries eligible server errors once. If Gemini remains unavailable, turn on **Use local mode** to keep supported local questions available. The question panel accepts typed questions and has no preset prompt buttons.
-
-To check that Gemini is answering beyond the examples, open **Ask a question** and try “What is the latest recorded 3-month return and its date for the Balanced Portfolio?” The supplied data records **9.60% on 2023-10-09**. Then ask the same question about the Fixed Income Plus portfolio, which has no performance rows.
-
-## Terminal and evaluation
-
-The evaluator explicitly disables local-first routing. Its results measure Gemini-generated tool decisions separately from the hybrid behavior used by the browser.
-
-```powershell
-.\.venv\Scripts\python.exe cli.py --demo "How many portfolios do we have in total?"
-.\.venv\Scripts\python.exe cli.py "What are the names of all active portfolios?"
-.\.venv\Scripts\python.exe evaluate.py
-.\.venv\Scripts\python.exe -m unittest -v test_portfolio
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+# Add your Gemini key to .env, then run:
+.venv/bin/python -m streamlit run app.py
 ```
 
-Omit the question to use the interactive CLI. The second and third commands require `GEMINI_API_KEY`. The evaluator runs all ten supplied questions through Gemini and checks the actual results. It executes the supplied SQL separately and derives the expected exposure weights independently from the CSVs. It compares values with numeric tolerance and allows row reordering unless the question explicitly requests a ranking. SQL columns are compared in reference order. Provider errors are reported separately as **UNAVAILABLE**. The local tests exercise known tool decisions and guardrails.
+</details>
 
-## Demo and calculation
+Open the URL printed by Streamlit. The direct dependencies are pinned to the versions used for validation.
 
-The desk opens on the Balanced Portfolio. Technology is 61.11% of its equity holdings and 22.00% of the whole portfolio. Select a segment in either bar to see the contributing holdings. The allocation selector offers the same drill-down by keyboard and lets you return to **All holdings**. Holding weights are numeric so the table can sort them. Expand **How this was calculated** for exact sector percentages and the calculation method.
+```dotenv
+GEMINI_API_KEY=your_key_here
+# Optional model override:
+# GEMINI_MODEL=gemini-3.5-flash-lite
+```
 
-The calculator uses the recorded holding weights. It sums stock weights by sector and divides by total stock weight for the equity-only view. The whole-portfolio view uses recorded weights directly and shows bonds separately. Any weight absent from the snapshot stays explicitly unrepresented. The supplied data describes a sample snapshot with no live quotes.
+The browser, CLI, and evaluator read `.env`. Environment variables take precedence. The actual `.env` stays local and is excluded by `.gitignore`.
 
-The browser displays the fund's recorded target risk, listed benchmark, and most recent available one- and three-month returns with their source date. Some funds have no performance rows. “Review this portfolio” combines these details with the exposure breakdown. The listed benchmark identifies the comparison index. The exercise data does not supply a corresponding benchmark return series for these comparisons.
+Without a key, local mode supports reviews, holdings, counts, and sector exposures. General natural-language queries and the live evaluator require Gemini. The default model is `gemini-3.5-flash-lite`.
 
-Gemini returns a structured tool decision. It sees the question, schema metadata, and portfolio names. The application runs the query and formats the result locally. Model-generated SQL runs on a query-only SQLite connection with an authorization allowlist, a work budget, and a 100-row output cap. The application keeps the API key in the server environment.
+## Try it
 
-Three read-only analytic views expose portfolio values, sector values, and diversification metrics. They aggregate positions before joining totals, avoiding duplicate counting when comparing a sector with its whole portfolio. These definitions are available to Gemini alongside the original schema.
+Select a fund, then type a question. The portfolio and its holdings remain visible beside the conversation.
+
+| Question | What it checks |
+| --- | --- |
+| “How are the holdings?” | Uses the selected fund and shows its recorded holdings |
+| “Pick any random one.” | Refers back to the holdings in the previous reply |
+| “What are the sector exposures for this portfolio?” | Shows equity-only and whole-portfolio percentages with contributing positions |
+| “Which portfolios hold both Apple and Microsoft? Show their combined recorded weight, highest first.” | Uses Gemini to generate a cross-portfolio query |
+| “Which portfolios have no performance records? Return their names.” | Handles missing records across the supplied dataset |
+
+**An example you can verify.** In the Balanced Portfolio, Apple is **12%** and Microsoft is **10%** of the recorded whole-portfolio weight. Their combined weight is **22%**.
+
+Every reply shows whether it used **local calculations** or **Gemini routing**, along with model-call and token information when available. Simple local questions make zero Gemini calls.
 
 ## Check the numbers
 
-This feature compares recorded weights with weights rebuilt from each supplied quantity × current price. In the Balanced Portfolio, Technology has a recorded weight of 22.00% and a rebuilt weight of 36.22%. Select an allocation to inspect its positions and their percentage-point differences, then download the review note with calculations and source names.
+This custom review feature helps explain why two portfolio reports might show different allocations.
 
-The comparison preserves the original exposure calculator's recorded weights. It shows missing weights explicitly, requires a single currency and complete position inputs, and explains that holding/quote dates are unavailable. Bond values follow the exercise's quantity × price convention. The comparison identifies a reporting difference to investigate.
+It compares the supplied holding weights with weights rebuilt from **quantity × supplied current price**, then shows the positions behind the difference.
 
-## Design references
+**Balanced Portfolio · Technology allocation**
 
-The implementation was written for this exercise. Repository review informed the use of clear calculation definitions, source details, and a question-oriented portfolio layout.
+| Calculation basis | Share of the whole portfolio |
+| --- | ---: |
+| Recorded holding weights | **22.00%** |
+| Rebuilt from supplied quantities and prices | **36.22%** |
+| Difference | **+14.22 percentage points** |
 
-- [Text-to-SQL analytics agent](https://github.com/martinmoll/Text-to-SQL-analytics-agent) describes governed metric definitions and provenance.
-- [Portfolio Management Dashboard](https://github.com/GraberTopG/PortfolioManagementDashboard) organizes portfolio inspection around user questions and explains data windows.
-- [AI Data Analyst Agent](https://github.com/mariam2004/ai-data-analyst-agent) describes grounded result tables, analysis details, and downloadable reports.
+Choose an allocation to inspect each holding's contribution. Download a review note containing the comparison, calculation method, and source files.
 
-“Check the numbers” combines the supplied exercise's two allocation bases with position evidence and a downloadable review note. This is a custom feature for this solution, with no claim that allocation reconciliation is new to finance.
+The original equity exposure calculator continues to use recorded weights. The comparison separately highlights missing weights, requires complete position inputs in a single currency, and follows the exercise's quantity × price convention for bonds. Holding and quote snapshot dates are absent, so differences need a source check before either basis is used in a report.
 
-## Reviewer hosting
+## Evaluation
 
-Deploy `app.py` from a private GitHub repository to Streamlit Community Cloud with reviewer-only access. Add `GEMINI_API_KEY` at the top level of the app's Secrets settings. Keep `.env` outside the repository. Verify the link using a reviewer account, then try the two performance questions above and click a sector in the Balanced Portfolio allocation chart.
+**Observed validation · November 6, 2026**
 
-## Validation
+| Check | Result |
+| --- | --- |
+| Supplied questions through Gemini only | **10 / 10 passed** |
+| Local regression suite | **16 / 16 passed** |
+| Portfolio views and local chat context | **13 / 13 funds passed** |
+| Live Gemini stock/bond holding counts | **13 / 13 selected funds passed** |
+| Fresh installation and extracted submission package | Dependencies, local CLI, SDK imports, and browser workflow passed |
 
-On November 6, 2026, the live Gemini-only run with `gemini-3.5-flash-lite` passed all 10 supplied cases. All 15 local regression tests passed. The reported rating → holdings → random holding conversation passed in the browser with zero Gemini calls. A subsequent live question resolved the chosen holding from context and returned its symbol and recorded portfolio percentage using one model call. Browser and Streamlit checks also covered portfolio selection, allocation evidence, comparison calculations, chat history, missing performance records, the 2% unrepresented-weight case, and downloading the review note. Earlier live runs encountered provider 503/504 errors. These results are a snapshot of observed behavior.
+Additional checks covered the Apple/Microsoft query, all nine funds without performance records, contextual follow-ups, bond-only funds, the 2% unrepresented-weight case, and inline timeout handling.
 
-The final submission audit also installed the pinned requirements in a fresh isolated environment, extracted the actual submission ZIP, and passed its 15 tests, local CLI queries, SDK imports, and local browser workflow without a saved API key. A separate live CLI run returned the ten active portfolios, and an additional Gemini question correctly found all nine portfolios without performance records. The browser's computed body, heading, and question-input font was verified as Arial.
+These are point-in-time results. Earlier live runs encountered Gemini HTTP 503/504 errors. Eligible server errors are retried once, and provider failures are reported separately as **UNAVAILABLE**.
 
-A subsequent all-portfolio check passed all 13 supplied funds in the UI and local review/conversation path. A live Gemini holdings-count question also passed for each selected fund (13/13), including both bond-only funds. The local suite now contains 16 passing tests, including a regression that checks every fund against its own stored holdings and weights.
+### Run the CLI and checks
+
+```powershell
+# Local example, with no API request
+.\.venv\Scripts\python.exe cli.py --demo "How many portfolios do we have in total?"
+
+# Live question; omit the question to enter the interactive CLI
+.\.venv\Scripts\python.exe cli.py "What are the names of all active portfolios?"
+
+# Live assignment evaluator
+.\.venv\Scripts\python.exe evaluate.py
+
+# Local regression tests
+.\.venv\Scripts\python.exe -m unittest -v test_portfolio
+```
+
+On macOS/Linux, use `.venv/bin/python` in place of `.\.venv\Scripts\python.exe`.
+
+The evaluator **disables local-first routing**. It executes reference SQL independently and derives expected exposures separately from the CSVs. Numeric comparisons use tolerance. Ranking questions preserve row order, and SQL columns are compared in reference order.
+
+## How it works
+
+```mermaid
+flowchart LR
+    UI["Browser / CLI"] --> Agent["Portfolio agent"]
+    Agent --> Local["Local question handlers"]
+    Agent --> Gemini["Gemini planner"]
+    Local --> Tools["SQL / exposure tools"]
+    Gemini --> Tools
+    Tools --> DB[("In-memory SQLite")]
+    DB --> Results["Results and calculation details"]
+```
+
+| Component | Responsibility |
+| --- | --- |
+| [portfolio_agent.py](portfolio_agent.py) | Hybrid routing, Gemini planning, source-anchored name resolution, and bounded SQL execution |
+| [portfolio_data.py](portfolio_data.py) | Loads the original schema and CSVs; creates read-only analytic views |
+| [portfolio_review.py](portfolio_review.py) | Allocation reconciliation and downloadable review notes |
+| [app.py](app.py) | Portfolio browser, charts, holdings, and chat |
+| [cli.py](cli.py) / [evaluate.py](evaluate.py) | Required terminal entry point and assignment evaluation |
+| [settings.py](settings.py) | Local and hosted Gemini configuration |
+
+**Calculation controls.** SQL runs on a query-only connection with allowed tables/functions, a work budget, and a 100-row output cap. Analytic views aggregate positions before joining totals to prevent duplicate counting. The exposure calculator uses deterministic Python calculations.
+
+**Conversation context.** Each fund keeps its last ten exchanges in the current browser session. Gemini receives the selected fund and the last four exchanges, including relevant symbols and up to five prior result rows. Model-call counts exclude network retry attempts.
+
+## Data and limits
+
+- The app analyzes the **13 portfolios supplied with the exercise**, including equity, mixed, and bond-only funds.
+- Figures describe a sample snapshot. Current holdings and quotes have no recorded snapshot date.
+- Performance is shown with its recorded date and only where the dataset contains records.
+- Listed benchmark names are available; matching benchmark return series are absent.
+- A 1–10 portfolio rating needs agreed scoring criteria. The app provides measured facts for review.
+- The interface and chart labels use Arial, with Consolas for query code.
+
+<details>
+<summary><strong>Design references</strong></summary>
+
+The implementation was written for this exercise. Repository review informed clear metric definitions, source details, and a portfolio layout organized around reviewer questions.
+
+- Governed definitions and provenance. [Text-to-SQL analytics agent](https://github.com/martinmoll/Text-to-SQL-analytics-agent)
+- Portfolio inspection and data-window explanations. [Portfolio Management Dashboard](https://github.com/GraberTopG/PortfolioManagementDashboard)
+- Grounded tables, analysis details, and report downloads. [AI Data Analyst Agent](https://github.com/mariam2004/ai-data-analyst-agent)
+
+“Check the numbers” combines this exercise's allocation bases, position evidence, and review-note export. It is a custom implementation for this solution. Global originality is unverified.
+
+</details>
+
+<details>
+<summary><strong>Optional reviewer hosting</strong></summary>
+
+Deploy `app.py` to Streamlit Community Cloud with access appropriate for the assignment material. Add `GEMINI_API_KEY` as a top-level entry in the app's Secrets settings. Keep the local `.env` out of Git.
+
+</details>
