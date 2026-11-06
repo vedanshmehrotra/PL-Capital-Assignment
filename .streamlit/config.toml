@@ -1,0 +1,12 @@
+[theme]
+primaryColor = "#167562"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F5F3"
+textColor = "#172B2A"
+font = "Arial, Helvetica, sans-serif"
+headingFont = "Arial, Helvetica, sans-serif"
+codeFont = "Consolas, monospace"
+baseFontSize = 15
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,8 @@
+.env
+.venv/
+.deps/
+.pip-cache/
+.streamlit/secrets.toml
+__pycache__/
+.ruff_cache/
+*.pyc
